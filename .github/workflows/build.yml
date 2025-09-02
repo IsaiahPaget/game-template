@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build release
-        run: odin test tests
+        run: odin test tests -define:ODIN_TEST_THREADS=1
 
   build_linux:
     name: Linux
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build release
-        run: odin test tests
+        run: odin test tests -define:ODIN_TEST_THREADS=1
 
   build_macos:
     name: MacOS
@@ -120,7 +120,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build release
-        run: odin test tests
+        run: odin test tests -define:ODIN_TEST_THREADS=1
 
   build_windows:
     name: Windows
