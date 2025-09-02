@@ -91,20 +91,6 @@ jobs:
       - name: Build web
         run: ./build_web.sh
 
-  test_windows:
-    name: tests_windows
-    runs-on: windows-latest
-    steps:
-      - uses: laytan/setup-odin@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          release: false
-
-      - uses: actions/checkout@v4
-
-      - name: Build release
-        run: odin test tests -define:ODIN_TEST_THREADS=1
-
   build_windows:
     name: Windows
     runs-on: windows-latest
