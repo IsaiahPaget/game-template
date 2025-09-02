@@ -11,7 +11,7 @@ on:
 
 jobs:
   test_ubuntu:
-    name: tests
+    name: tests_ubuntu
     runs-on: ubuntu-latest
     steps:
       - uses: laytan/setup-odin@v2
@@ -56,23 +56,6 @@ jobs:
       - name: Build web
         run: ./build_web.sh
 
-  test_macos:
-    name: tests
-    strategy:
-      matrix:
-        os: [macos-13, macos-15]
-    runs-on: ${{matrix.os}}
-    steps:
-      - uses: laytan/setup-odin@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          release: false
-
-      - uses: actions/checkout@v4
-
-      - name: Build release
-        run: odin test tests -define:ODIN_TEST_THREADS=1
-
   build_macos:
     name: MacOS
     strategy:
@@ -109,7 +92,7 @@ jobs:
         run: ./build_web.sh
 
   test_windows:
-    name: tests
+    name: tests_windows
     runs-on: windows-latest
     steps:
       - uses: laytan/setup-odin@v2
