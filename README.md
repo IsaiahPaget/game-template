@@ -114,10 +114,10 @@ Streams that start from this template:
 
 The template works nicely together with my [atlas builder](https://github.com/karl-zylinski/atlas-builder). The atlas builder can build an atlas texture from a folder of png or aseprite files. Using an atlas can drastically reduce the number of draw calls your game uses. There's an example in that repository on how to set it up. The atlas generation step can easily be integrated into the build `bat` / `sh` files such as `build_hot_reload.bat`
 
-## Questions?
-
-Ask questions in my gamedev Discord: https://discord.gg/4FsHgtBmFK
-
-I have a blog post about Hot Reloading here: http://zylinski.se/posts/hot-reload-gameplay-code/
-
-## Have a nice day! /Karl Zylinski
+## TODOs
+#### Errors
+```bash
+=> ./build_hot_reload.sh
+Building game.so
+./build_hot_reload.sh: line 37: 744324 Segmentation fault         (core dumped) odin build source -extra-linker-flags:"$EXTRA_LINKER_FLAGS" -define:RAYLIB_SHARED=true -build-mode:dll -out:$OUT_DIR/game_tmp$DLL_EXT -strict-style -vet -debug
+```

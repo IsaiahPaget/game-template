@@ -29,10 +29,13 @@ package game
 
 import "core:fmt"
 import "core:math"
+import "core:sort"
 import rl "vendor:raylib"
 
 DEBUG :: true
 PIXEL_WINDOW_HEIGHT :: 180
+SCREEN_WIDTH :: 1280
+SCREEN_HEIGHT :: 720
 
 Handle :: struct {
 	index: int,
@@ -54,7 +57,8 @@ GameMemory :: struct {
 	soundtrack:       rl.Music,
 	run:              bool,
 	scratch:          struct {
-		all_entities: []Handle,
+		all_entities:   []Handle,
+		collision_tree: ^CollisionTree,
 	},
 }
 
@@ -84,20 +88,12 @@ rebuild_scratch :: proc() {
 		if !entity_is_valid(e) do continue
 		append(&all_ents, e.handle)
 	}
-	// Greedy selection sort by z
-	for i in 0 ..< len(all_ents) {
-		min_index := i
-		for j in i + 1 ..< len(all_ents) {
-			ea := entity_get(all_ents[j])
-			em := entity_get(all_ents[min_index])
-			if ea.z_index < em.z_index {
-				min_index = j
-			}
-		}
-		if min_index != i {
-			all_ents[i], all_ents[min_index] = all_ents[min_index], all_ents[i]
-		}
-	}
+	// sort by z index
+	sort.quick_sort_proc(all_ents[:], proc(a, b: Handle) -> int {
+		ea := entity_get(a)
+		eb := entity_get(b)
+		return int(ea.z_index < eb.z_index)
+	})
 	// Sort entities by their z value (lower z drawn first, higher on top)
 	g.scratch.all_entities = all_ents[:]
 }
@@ -141,7 +137,7 @@ game_camera :: proc() -> rl.Camera2D {
 	target := rl.Vector2(0)
 	target += get_screen_shake()
 
-	return {zoom = h / PIXEL_WINDOW_HEIGHT, target = target, offset = {w / 2, h / 2}}
+	return {zoom = h / SCREEN_HEIGHT, target = target, offset = {w / 2, h / 2}}
 }
 
 ui_camera :: proc() -> rl.Camera2D {
@@ -153,7 +149,6 @@ update :: proc() {
 	g.scratch = {}
 	rebuild_scratch()
 
-	fmt.println(g.scratch.all_entities)
 	rl.UpdateMusicStream(g.soundtrack)
 	// big :update time
 	for handle in entity_get_all() {
@@ -166,19 +161,25 @@ update :: proc() {
 		collision_box_update(e)
 	}
 
+	process_collisions()
+
 	if rl.IsKeyPressed(.ESCAPE) {
 		g.run = false
 	}
 }
 
 draw :: proc() {
+	collision_tree_depth: int
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.RED)
+	rl.ClearBackground(rl.GRAY)
 
 	rl.BeginMode2D(game_camera())
 	for handle in entity_get_all() {
 		e := entity_get(handle)^ // dereference because we don't want to edit it
 		e.on_draw(e)
+	}
+	if DEBUG && g.scratch.collision_tree != nil {
+		collision_tree_depth = debug_render_collision_tree(g.scratch.collision_tree)
 	}
 	rl.EndMode2D()
 
@@ -194,6 +195,17 @@ draw :: proc() {
 	// 	8,
 	// 	rl.WHITE,
 	// )
+
+	if DEBUG {
+		rl.DrawFPS(5, 5)
+		rl.DrawText(
+			fmt.ctprintf("collision tree MAX depth: %v", collision_tree_depth),
+			5,
+			25,
+			8,
+			rl.WHITE,
+		)
+	}
 
 	rl.EndMode2D()
 
@@ -228,6 +240,18 @@ game_init :: proc() {
 	}
 
 	entity_create(.PLAYER)
+	for _ in 0 ..< 1000 {
+		ball := entity_create(.BALL)
+		ball.pos.x = f32(rl.GetRandomValue(-SCREEN_WIDTH, SCREEN_WIDTH))
+		ball.pos.y = f32(rl.GetRandomValue(-SCREEN_HEIGHT, SCREEN_HEIGHT))
+		ball.collider = init_collider(
+			ball^,
+			width = 10,
+			height = 10,
+			layer = {.WORLD},
+			mask = {.WORLD, .PLAYER},
+		)
+	}
 
 	game_hot_reloaded(g)
 }

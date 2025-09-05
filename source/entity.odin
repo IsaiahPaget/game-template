@@ -11,6 +11,7 @@ zero_entity: Entity // #readonly for zeroing entities
 EntityKind :: enum {
 	NIL,
 	PLAYER,
+	BALL,
 }
 
 Entity :: struct {
@@ -19,8 +20,10 @@ Entity :: struct {
 	pos:            rl.Vector2,
 	on_update:      proc(entity: ^Entity),
 	on_draw:        proc(entity: Entity),
+	on_collide:     proc(entity_a, entity_b: ^Entity),
 	z_index:        int,
 	collider:       Collider,
+	tint:           rl.Color,
 	velocity:       rl.Vector2,
 	rotation:       f32,
 	scale:          f32,
@@ -71,6 +74,10 @@ get_texture_position :: proc(e: Entity) -> rl.Vector2 {
 entity_is_valid :: proc {
 	entity_is_valid_no_ptr,
 	entity_is_valid_ptr,
+	entity_is_valid_handle,
+}
+entity_is_valid_handle :: proc(handle: Handle) -> bool {
+	return handle.id != 0
 }
 entity_is_valid_no_ptr :: proc(entity: Entity) -> bool {
 	return entity.handle.id != 0
@@ -120,6 +127,7 @@ entity_create :: proc(kind: EntityKind) -> ^Entity {
 	}
 
 	ent := &g.entities[index]
+	fmt.assertf(ent != nil, "entity is nil when created")
 	ent.handle.index = index
 	ent.handle.id = g.latest_entity_id + 1
 	g.latest_entity_id = ent.handle.id
@@ -139,10 +147,13 @@ entity_setup :: proc(e: ^Entity, kind: EntityKind) {
 	e.scale = 1
 	e.kind = kind
 	e.created_on = rl.GetTime()
+	e.tint = rl.WHITE
 
 	switch kind {
 	case .NIL:
 	case .PLAYER:
 		player_setup(e)
+	case .BALL:
+		ball_setup(e)
 	}
 }
