@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 COLLISION_TREE_CAPACITY :: 2
+DEBUG_TREE :: false
 CollisionLayerName :: enum {
 	NIL,
 	PLAYER,
@@ -55,20 +56,6 @@ collision_box_update :: proc(e: ^Entity) {
 	e.collider.rectangle.y = e.pos.y - e.collider.rectangle.height
 }
 
-// process_colliders :: proc(entity_a: ^Entity, cb: proc(e_a: ^Entity, entity_b: ^Entity)) {
-// 	if !entity_a.collider.is_active {
-// 		return
-// 	}
-// 	for entity_handle in entity_get_all() {
-// 		ent := entity_get(entity_handle)
-// 		if ent.collider.is_active != true do continue
-// 		if ent.handle.id == entity_a.handle.id do continue
-// 		if rl.CheckCollisionRecs(entity_a.collider.rectangle, ent.collider.rectangle) {
-// 			cb(entity_a, ent)
-// 		}
-// 	}
-// }
-
 process_collisions :: proc() {
 
 	g.scratch.collision_tree = collision_tree_create()
@@ -95,8 +82,10 @@ process_collisions :: proc() {
 
 			if !rl.CheckCollisionRecs(ent_a.collider.rectangle, ent_b.collider.rectangle) do continue
 
-			// TODO: use the mask to send notification
-			ent_a.on_collide(ent_a, ent_b)
+			// Check if entity A should receive collision notification based on layer/mask
+			if ent_b.collider.layer & ent_a.collider.mask != {} {
+				ent_a.on_collide(ent_a, ent_b)
+			}
 		}
 	}
 }
@@ -104,7 +93,7 @@ process_collisions :: proc() {
 debug_render_collision_tree :: proc(ct: ^CollisionTree, cur_depth: int = 0) -> (depth: int) {
 	depth = cur_depth + 1
 	max_depth := 0
-	rl.DrawRectangleLinesEx(ct.bounding_box, 2, rl.ColorAlpha(rl.GREEN, .5))
+	rl.DrawRectangleLinesEx(ct.bounding_box, 2, rl.ColorAlpha(rl.PINK, .5))
 	if ct.nw != nil {
 		max_depth = debug_render_collision_tree(ct.nw, cur_depth)
 	}
@@ -173,7 +162,12 @@ CollisionTree :: struct {
 }
 
 collision_tree_create :: proc(
-	bounding_box: rl.Rectangle = {x = -SCREEN_WIDTH / 2, y = -SCREEN_HEIGHT / 2, width = SCREEN_WIDTH, height = SCREEN_HEIGHT},
+	bounding_box: rl.Rectangle = {
+		x = -SCREEN_WIDTH / 2,
+		y = -SCREEN_HEIGHT / 2,
+		width = SCREEN_WIDTH,
+		height = SCREEN_HEIGHT,
+	},
 ) -> ^CollisionTree {
 	collision_tree := new(CollisionTree, context.temp_allocator)
 	collision_tree.bounding_box = bounding_box
@@ -195,14 +189,15 @@ collision_tree_insert :: proc(ct: ^CollisionTree, collider: Collider) -> (insert
 		ct.colliders[ct.amount] = collider
 		ct.amount += 1
 		return true
+	} else {
+		if ct.nw == nil {
+			collision_tree_divide(ct)
+		}
+		if collision_tree_insert(ct.nw, collider) do return true
+		if collision_tree_insert(ct.ne, collider) do return true
+		if collision_tree_insert(ct.sw, collider) do return true
+		if collision_tree_insert(ct.se, collider) do return true
 	}
-	if ct.nw == nil {
-		collision_tree_divide(ct)
-	}
-	if collision_tree_insert(ct.nw, collider) do return true
-	if collision_tree_insert(ct.ne, collider) do return true
-	if collision_tree_insert(ct.sw, collider) do return true
-	if collision_tree_insert(ct.se, collider) do return true
 
 	return false
 }
@@ -216,7 +211,7 @@ collision_tree_query :: proc(ct: ^CollisionTree, collider: Collider) -> [dynamic
 	}
 
 	for &c in ct.colliders {
-		if entity_is_valid(c.handle) {
+		if entity_is_valid(c.handle) && rl.CheckCollisionRecs(c.rectangle, collider.rectangle) {
 			append(&colliders_in_range, c)
 		}
 	}

@@ -68,7 +68,7 @@ get_texture_position :: proc(e: Entity) -> rl.Vector2 {
 	texture_width := f32(e.animation.texture.width / i32(e.animation.frame_count))
 	texture_height := f32(e.animation.texture.height)
 
-	return rl.Vector2{e.pos.x - texture_width / 2 * e.scale, e.pos.y - texture_height / 2}
+	return rl.Vector2{e.pos.x - texture_width / 2 * e.scale, e.pos.y - texture_height}
 }
 
 entity_is_valid :: proc {

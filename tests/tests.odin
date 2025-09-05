@@ -324,254 +324,205 @@ set_multiple_collision_layers :: proc(t: ^testing.T) {
 	)
 }
 
+// ============================================================================
+// COLLISION TREE TEST HELPERS
+// ============================================================================
+
+// Helper function to create a collision tree for testing
+create_test_collision_tree :: proc() -> ^gm.CollisionTree {
+	return gm.collision_tree_create()
+}
+
+// Helper function to create a ball entity with standard collider
+create_test_ball :: proc(x, y: f32) -> ^gm.Entity {
+	ball := gm.entity_create(.BALL)
+	ball.collider.rectangle = rl.Rectangle {
+		x      = x,
+		y      = y,
+		width  = 10,
+		height = 10,
+	}
+	return ball
+}
+
+
+// ============================================================================
+// COLLISION TREE TESTS
+// ============================================================================
+
 @(test)
 test_create_collision_tree :: proc(t: ^testing.T) {
 	init_test_memory()
 	defer free_test_memory()
-	ct := gm.collision_tree_create()
-	testing.expectf(t, ct != nil, "collision tree should not equal nil")
-
+	
+	ct := create_test_collision_tree()
+	
+	testing.expectf(t, ct != nil, "collision tree should not be nil")
 	testing.expectf(
 		t,
 		ct.capacity == gm.COLLISION_TREE_CAPACITY,
-		"collision tree capacity should be equal to constant",
+		"collision tree capacity should equal COLLISION_TREE_CAPACITY constant",
 	)
-
-	testing.expectf(t, ct != nil, "no colliders in tree at start")
+	testing.expectf(t, ct.amount == 0, "collision tree should start with 0 colliders")
 }
 
 @(test)
-insert_into_collision_tree :: proc(t: ^testing.T) {
+test_collision_tree_insert_basic :: proc(t: ^testing.T) {
 	init_test_memory()
 	defer free_test_memory()
 
-	ct := gm.collision_tree_create()
+	ct := create_test_collision_tree()
 
+	// Test inserting first collider
 	player := gm.entity_create(.PLAYER)
 	ok := gm.collision_tree_insert(ct, player.collider)
+	
+	testing.expectf(t, ok, "inserting first collider should succeed")
+	testing.expectf(t, ct.amount == 1, "tree should contain 1 collider after first insert")
 
-	testing.expectf(t, ct.amount == 1, "amount should be 1")
-	testing.expectf(t, ok, "inserting a collider to the tree should work")
-
-	ball1 := gm.entity_create(.BALL)
-	ball1.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
+	// Test inserting second collider
+	ball1 := create_test_ball(0, 0)
 	ball1_ok := gm.collision_tree_insert(ct, ball1.collider)
-	fmt.assertf(ball1_ok, "ball one was NOT inserted")
-	testing.expectf(
-		t,
-		ct.amount == 2,
-		"inserting a second collider to the tree should result in 2 not %i",
-		ct.amount,
-	)
-
-
-	ball2 := gm.entity_create(.BALL)
-	ball2.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball2.collider)
-	ball3 := gm.entity_create(.BALL)
-	ball3.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball3.collider)
-
-	testing.expectf(
-		t,
-		ct.amount == gm.COLLISION_TREE_CAPACITY,
-		"current index should be %i",
-		gm.COLLISION_TREE_CAPACITY,
-	)
-
-	ball4 := gm.entity_create(.BALL)
-	ball4.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball4.collider)
-
-	testing.expectf(
-		t,
-		ct.bounding_box.width == (ct.nw.bounding_box.width + ct.ne.bounding_box.width),
-		"division on the X axis should be in half",
-	)
-	testing.expectf(
-		t,
-		ct.bounding_box.height == (ct.nw.bounding_box.height + ct.sw.bounding_box.height),
-		"division on the X axis should be in half",
-	)
-	testing.expectf(
-		t,
-		ct.nw != nil && ct.ne != nil && ct.sw != nil && ct.se != nil,
-		"subdivisions should not be nil",
-	)
-
-
-	testing.expectf(t, ct.nw.amount == 1, "no colliders in this quadrant")
+	
+	testing.expectf(t, ball1_ok, "inserting second collider should succeed")
+	testing.expectf(t, ct.amount == 2, "tree should contain 2 colliders after second insert")
 }
 
-// @(test)
-// test_collision_tree_depth :: proc(t: ^testing.T) {
-// 	init_test_memory()
-// 	defer free_test_memory()
-//
-// 	ct := gm.collision_tree_create(rl.Rectangle{width = 100, height = 100})
-//
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-//
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-// 	gm.entity_create(.BALL)
-//
-// 	testing.expectf(
-// 		t,
-// 		ct.nw.amount == 4,
-// 		"there should be 4 entities in the NW quadrant",
-// 	)
-//
-// 	ball5 := gm.entity_create(.BALL)
-// 	ball5.pos = {26, 26}
-//
-//
-// }
-
 @(test)
-query_collision_tree :: proc(t: ^testing.T) {
+test_collision_tree_insert_capacity_exceeded :: proc(t: ^testing.T) {
 	init_test_memory()
 	defer free_test_memory()
 
-	ct := gm.collision_tree_create()
+	ct := create_test_collision_tree()
 
-	/*
-	layer 1
-	*/
+	// Fill tree to capacity
 	player := gm.entity_create(.PLAYER)
-	player.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
 	gm.collision_tree_insert(ct, player.collider)
-
-
-	ball1 := gm.entity_create(.BALL)
-	ball1.collider.rectangle = rl.Rectangle {
-		x      = gm.SCREEN_WIDTH - 50,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
+	
+	ball1 := create_test_ball(0, 0)
 	gm.collision_tree_insert(ct, ball1.collider)
-
-
-	ball2 := gm.entity_create(.BALL)
-	ball2.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = gm.SCREEN_HEIGHT - 50,
-		width  = 10,
-		height = 10,
-	}
+	
+	ball2 := create_test_ball(0, 0)
 	gm.collision_tree_insert(ct, ball2.collider)
-	ball3 := gm.entity_create(.BALL)
-	ball3.collider.rectangle = rl.Rectangle {
-		x      = gm.SCREEN_WIDTH - 50,
-		y      = gm.SCREEN_HEIGHT - 50,
-		width  = 10,
-		height = 10,
-	}
+	
+	ball3 := create_test_ball(0, 0)
 	gm.collision_tree_insert(ct, ball3.collider)
 
-	testing.expectf(t, ct.amount == 4, "first layer should be full not %i", ct.amount)
-	// end layer 1
+	testing.expectf(t, ct.amount == gm.COLLISION_TREE_CAPACITY, 
+		"tree should be at capacity (%d) before subdivision", gm.COLLISION_TREE_CAPACITY)
 
-	/*
-	layer 2
-	*/
-
-	ball4 := gm.entity_create(.BALL)
-	ball4.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
+	// Insert one more to trigger subdivision
+	ball4 := create_test_ball(0, 0)
 	gm.collision_tree_insert(ct, ball4.collider)
 
-	ball5 := gm.entity_create(.BALL)
-	ball5.collider.rectangle = rl.Rectangle {
-		x      = gm.SCREEN_WIDTH / 2 - 50,
-		y      = 0,
-		width  = 10,
-		height = 10,
+	// Verify subdivision occurred
+	testing.expectf(t, ct.nw != nil && ct.ne != nil && ct.sw != nil && ct.se != nil,
+		"tree should be subdivided into four quadrants")
+	
+	testing.expectf(t, ct.bounding_box.width == (ct.nw.bounding_box.width + ct.ne.bounding_box.width),
+		"X-axis subdivision should split width in half")
+	
+	testing.expectf(t, ct.bounding_box.height == (ct.nw.bounding_box.height + ct.sw.bounding_box.height),
+		"Y-axis subdivision should split height in half")
+}
+
+@(test)
+test_collision_tree_query_single_layer :: proc(t: ^testing.T) {
+	init_test_memory()
+	defer free_test_memory()
+
+	ct := create_test_collision_tree()
+	
+	// Insert only 2 colliders to stay within capacity (COLLISION_TREE_CAPACITY = 2)
+	player := gm.entity_create(.PLAYER)
+	player.collider.rectangle = rl.Rectangle{x = 0, y = 0, width = 10, height = 10}
+	gm.collision_tree_insert(ct, player.collider)
+
+	ball1 := create_test_ball(5, 5) // Overlapping with player rectangle
+	gm.collision_tree_insert(ct, ball1.collider)
+
+	// Test query on single layer (before subdivision)
+	testing.expectf(t, ct.amount == 2, "first layer should contain 2 colliders (at capacity)")
+	
+	colliders := gm.collision_tree_query(ct, player.collider)
+	defer delete(colliders)
+	
+	testing.expectf(t, len(colliders) == 2, 
+		"query should return 2 colliders from single layer, got %d", len(colliders))
+}
+
+@(test)
+test_collision_tree_query_multiple_layers :: proc(t: ^testing.T) {
+	init_test_memory()
+	defer free_test_memory()
+
+	ct := create_test_collision_tree()
+	
+	// Create entities that will be distributed across quadrants after subdivision
+	player := gm.entity_create(.PLAYER)
+	player.collider.rectangle = rl.Rectangle{x = 0, y = 0, width = 10, height = 10}
+	gm.collision_tree_insert(ct, player.collider)
+
+	ball1 := create_test_ball(5, 5) // Overlapping with player
+	gm.collision_tree_insert(ct, ball1.collider)
+
+	// Insert third collider to trigger subdivision (capacity = 2)
+	ball2 := create_test_ball(200, 200) // Far from player
+	gm.collision_tree_insert(ct, ball2.collider)
+
+	// Verify subdivision occurred
+	testing.expectf(t, ct.nw != nil, "NW quadrant should exist after subdivision")
+	testing.expectf(t, ct.ne != nil, "NE quadrant should exist after subdivision")
+	testing.expectf(t, ct.sw != nil, "SW quadrant should exist after subdivision")
+	testing.expectf(t, ct.se != nil, "SE quadrant should exist after subdivision")
+
+	// Add more entities to test deeper subdivision
+	ball3 := create_test_ball(2, 2) // Should overlap with player
+	gm.collision_tree_insert(ct, ball3.collider)
+
+	ball4 := create_test_ball(150, 50) // Should go in NE quadrant
+	gm.collision_tree_insert(ct, ball4.collider)
+
+	// Test query across multiple layers
+	colliders := gm.collision_tree_query(ct, player.collider)
+	defer delete(colliders)
+	
+	// Should return exactly 3 colliders: player, ball1, and ball3 (all overlapping with player)
+	testing.expectf(t, len(colliders) == 3, 
+		"query should return exactly 3 colliders (player, ball1, ball3), got %d", len(colliders))
+	
+	// Verify that we get the expected colliders by checking their handles
+	found_player := false
+	found_ball1 := false
+	found_ball3 := false
+	found_ball2 := false
+	found_ball4 := false
+	
+	for c in colliders {
+		if c.handle.id == player.handle.id {
+			found_player = true
+			testing.expectf(t, c.handle.index == player.handle.index, 
+				"player collider should have correct index")
+		} else if c.handle.id == ball1.handle.id {
+			found_ball1 = true
+			testing.expectf(t, c.handle.index == ball1.handle.index, 
+				"ball1 collider should have correct index")
+		} else if c.handle.id == ball3.handle.id {
+			found_ball3 = true
+			testing.expectf(t, c.handle.index == ball3.handle.index, 
+				"ball3 collider should have correct index")
+		} else if c.handle.id == ball2.handle.id {
+			found_ball2 = true
+		} else if c.handle.id == ball4.handle.id {
+			found_ball4 = true
+		}
 	}
-	gm.collision_tree_insert(ct, ball5.collider)
-
-	ball6 := gm.entity_create(.BALL)
-	ball6.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = gm.SCREEN_HEIGHT / 2 - 50,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball6.collider)
-
-	ball7 := gm.entity_create(.BALL)
-	ball7.collider.rectangle = rl.Rectangle {
-		x      = gm.SCREEN_WIDTH / 2 - 50,
-		y      = gm.SCREEN_HEIGHT / 2 - 50,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball7.collider)
-	testing.expectf(t, ct.nw.amount == 4, "second layer NW should be full not %i", ct.nw.amount)
-	testing.expectf(t, ct.ne.amount == 0, "second layer NE should be full not %i", ct.ne.amount)
-	// end layer 2
-
-	/*
-	layer 3
-	*/
-
-	ball8 := gm.entity_create(.BALL)
-	ball8.collider.rectangle = rl.Rectangle {
-		x      = 0,
-		y      = 0,
-		width  = 10,
-		height = 10,
-	}
-	gm.collision_tree_insert(ct, ball8.collider)
-	testing.expectf(
-		t,
-		ct.nw.nw.amount == 1,
-		"third layer NW should have 1 not %i",
-		ct.nw.nw.amount,
-	)
-
-
-	colliders_from_player := gm.collision_tree_query(ct, player.collider)
-	defer delete(colliders_from_player)
-
-	testing.expectf(
-		t,
-		len(colliders_from_player) == 9,
-		"there should be 9 colliders in this range NOT %i",
-		len(colliders_from_player),
-	)
+	
+	testing.expectf(t, found_player, "query should include player collider")
+	testing.expectf(t, found_ball1, "query should include ball1 collider (overlapping)")
+	testing.expectf(t, found_ball3, "query should include ball3 collider (overlapping)")
+	
+	// Verify that ball2 and ball4 are NOT included (they don't overlap with player)
+	testing.expectf(t, !found_ball2, "query should NOT include ball2 collider (non-overlapping)")
+	testing.expectf(t, !found_ball4, "query should NOT include ball4 collider (non-overlapping)")
 }

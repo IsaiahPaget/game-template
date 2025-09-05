@@ -171,14 +171,14 @@ update :: proc() {
 draw :: proc() {
 	collision_tree_depth: int
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.GRAY)
+	rl.ClearBackground(rl.BLACK)
 
 	rl.BeginMode2D(game_camera())
 	for handle in entity_get_all() {
 		e := entity_get(handle)^ // dereference because we don't want to edit it
 		e.on_draw(e)
 	}
-	if DEBUG && g.scratch.collision_tree != nil {
+	if DEBUG_TREE && g.scratch.collision_tree != nil {
 		collision_tree_depth = debug_render_collision_tree(g.scratch.collision_tree)
 	}
 	rl.EndMode2D()
@@ -198,13 +198,15 @@ draw :: proc() {
 
 	if DEBUG {
 		rl.DrawFPS(5, 5)
-		rl.DrawText(
-			fmt.ctprintf("collision tree MAX depth: %v", collision_tree_depth),
-			5,
-			25,
-			8,
-			rl.WHITE,
-		)
+		if DEBUG_TREE && g.scratch.collision_tree != nil {
+			rl.DrawText(
+				fmt.ctprintf("collision tree MAX depth: %v", collision_tree_depth),
+				5,
+				25,
+				8,
+				rl.WHITE,
+			)
+		}
 	}
 
 	rl.EndMode2D()

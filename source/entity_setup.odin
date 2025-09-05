@@ -1,14 +1,14 @@
 package game
-import "core:fmt"
 import rl "vendor:raylib"
+import "core:fmt"
 
 player_setup :: proc(player: ^Entity) {
 	player.pos.xy = 0
 	player.animation = init_player_run_animation()
 	player.collider = init_collider(
 		player^,
-		width = 10,
-		height = 10,
+		width = 30,
+		height = 20,
 		layer = {.PLAYER},
 		mask = {.WORLD},
 	)
@@ -45,6 +45,13 @@ init_player_run_animation :: proc() -> Animation {
 }
 ball_setup :: proc(ball: ^Entity) {
 	ball.animation = init_ball_run_animation()
+	ball.collider = init_collider(
+		ball^,
+		width = 10,
+		height = 10,
+		layer = {.WORLD},
+		mask = {.PLAYER},
+	)
 	ball.on_update = ball_update
 	ball.on_draw = ball_draw
 	ball.on_collide = ball_collide
