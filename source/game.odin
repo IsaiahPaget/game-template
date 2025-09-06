@@ -177,6 +177,7 @@ draw :: proc() {
 	rl.BeginMode2D(game_camera())
 	for handle in entity_get_all() {
 		e := entity_get(handle)^ // dereference because we don't want to edit it
+		if !entity_is_valid(e) do continue
 		e.on_draw(e)
 	}
 	if DEBUG_TREE && g.scratch.collision_tree != nil {
@@ -247,10 +248,10 @@ game_init :: proc() {
 	}
 
 	entity_create(.PLAYER)
-	for _ in 0 ..< MAX_ENTITIES - 2 {
+	for _ in 0 ..< 10 {
 		ball := entity_create(.BALL)
-		ball.pos.x = f32(rl.GetRandomValue(-SCREEN_WIDTH, SCREEN_WIDTH / 4))
-		ball.pos.y = f32(rl.GetRandomValue(-SCREEN_HEIGHT, SCREEN_HEIGHT / 4))
+		ball.pos.x = f32(rl.GetRandomValue(-100, 100))
+		ball.pos.y = f32(rl.GetRandomValue(-100, 100))
 		ball.collider = init_collider(
 			ball^,
 			width = 10,
@@ -280,6 +281,7 @@ game_shutdown :: proc() {
 
 	rl.UnloadTexture(g.textures.player_run)
 
+	delete(g.entity_free_list) // free the entity freelist
 	free(g)
 }
 

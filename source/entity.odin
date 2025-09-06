@@ -3,7 +3,7 @@ package game
 import "core:fmt"
 import rl "vendor:raylib"
 
-MAX_ENTITIES :: 12000
+MAX_ENTITIES :: 2048
 
 zero_entity: Entity // #readonly for zeroing entities
 

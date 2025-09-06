@@ -17,7 +17,7 @@ player_setup :: proc(player: ^Entity) {
 }
 
 player_collide :: proc(player, entity: ^Entity) {
-	// entity_destroy(entity)
+	entity_destroy(entity)
 }
 
 
