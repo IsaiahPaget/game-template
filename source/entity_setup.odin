@@ -1,7 +1,6 @@
 package game
 import rl "vendor:raylib"
-import "core:fmt"
-
+PLAYER_MOVE_SPEED :: 100
 player_setup :: proc(player: ^Entity) {
 	player.pos.xy = 0
 	player.animation = init_player_run_animation()
@@ -18,14 +17,26 @@ player_setup :: proc(player: ^Entity) {
 }
 
 player_collide :: proc(player, entity: ^Entity) {
-	fmt.println("collision")
+	// entity_destroy(entity)
 }
+
 
 player_update :: proc(player: ^Entity) {
 
+	// player input
 	player.velocity.xy = 0
-	player.velocity.y += f32(rl.GetRandomValue(-100, 100))
-	player.velocity.x += f32(rl.GetRandomValue(-100, 100))
+	if rl.IsKeyDown(.UP) {
+		player.velocity.y -= PLAYER_MOVE_SPEED
+	}
+	if rl.IsKeyDown(.LEFT) {
+		player.velocity.x -= PLAYER_MOVE_SPEED
+	}
+	if rl.IsKeyDown(.DOWN) {
+		player.velocity.y += PLAYER_MOVE_SPEED
+	}
+	if rl.IsKeyDown(.RIGHT) {
+		player.velocity.x += PLAYER_MOVE_SPEED
+	}
 
 	// WARNING: nothing goes after this line
 	player.pos += player.velocity * rl.GetFrameTime()
@@ -43,6 +54,8 @@ init_player_run_animation :: proc() -> Animation {
 		kind = .IDLE,
 	}
 }
+
+BALL_TERMINAL_VELOCITY :: 20
 ball_setup :: proc(ball: ^Entity) {
 	ball.animation = init_ball_run_animation()
 	ball.collider = init_collider(
@@ -55,17 +68,21 @@ ball_setup :: proc(ball: ^Entity) {
 	ball.on_update = ball_update
 	ball.on_draw = ball_draw
 	ball.on_collide = ball_collide
+	ball.velocity.y += f32(rl.GetRandomValue(-BALL_TERMINAL_VELOCITY, BALL_TERMINAL_VELOCITY))
+	ball.velocity.x += f32(rl.GetRandomValue(-BALL_TERMINAL_VELOCITY, BALL_TERMINAL_VELOCITY))
 }
 
 ball_collide :: proc(ball, entity: ^Entity) {
-	// fmt.println("ball collided")
+	ball.velocity -= entity.velocity / 2
 }
 
 ball_update :: proc(ball: ^Entity) {
-
-	ball.velocity.xy = 0
-	ball.velocity.y += f32(rl.GetRandomValue(-50, 50))
-	ball.velocity.x += f32(rl.GetRandomValue(-50, 50))
+	if ball.velocity.x > BALL_TERMINAL_VELOCITY || ball.velocity.x < -BALL_TERMINAL_VELOCITY {
+		ball.velocity.x = BALL_TERMINAL_VELOCITY
+	}
+	if ball.velocity.y > BALL_TERMINAL_VELOCITY || ball.velocity.y < -BALL_TERMINAL_VELOCITY {
+		ball.velocity.y = BALL_TERMINAL_VELOCITY
+	}
 
 	// WARNING: nothing goes after this line
 	ball.pos += ball.velocity * rl.GetFrameTime()

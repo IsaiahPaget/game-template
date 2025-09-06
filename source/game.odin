@@ -152,7 +152,8 @@ update :: proc() {
 	rl.UpdateMusicStream(g.soundtrack)
 	// big :update time
 	for handle in entity_get_all() {
-		e := entity_get(handle)
+		e, ok := entity_get(handle)
+		if !ok do continue
 		// animation for every entity
 		animate(e)
 
@@ -225,8 +226,12 @@ game_update :: proc() {
 
 @(export)
 game_init_window :: proc() {
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1280, 720, "Odin + Raylib + Hot Reload template!")
+	rl.SetConfigFlags(
+		{
+			.WINDOW_RESIZABLE, /*.VSYNC_HINT*/
+		},
+	)
+	rl.InitWindow(1280, 720, "Game Template")
 	rl.SetWindowPosition(200, 200)
 	rl.SetTargetFPS(500)
 	rl.SetExitKey(nil)
@@ -242,10 +247,10 @@ game_init :: proc() {
 	}
 
 	entity_create(.PLAYER)
-	for _ in 0 ..< 1000 {
+	for _ in 0 ..< MAX_ENTITIES - 2 {
 		ball := entity_create(.BALL)
-		ball.pos.x = f32(rl.GetRandomValue(-SCREEN_WIDTH, SCREEN_WIDTH))
-		ball.pos.y = f32(rl.GetRandomValue(-SCREEN_HEIGHT, SCREEN_HEIGHT))
+		ball.pos.x = f32(rl.GetRandomValue(-SCREEN_WIDTH, SCREEN_WIDTH / 4))
+		ball.pos.y = f32(rl.GetRandomValue(-SCREEN_HEIGHT, SCREEN_HEIGHT / 4))
 		ball.collider = init_collider(
 			ball^,
 			width = 10,

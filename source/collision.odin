@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 COLLISION_TREE_CAPACITY :: 2
-DEBUG_TREE :: false
+DEBUG_TREE :: true
 CollisionLayerName :: enum {
 	NIL,
 	PLAYER,
@@ -68,6 +68,7 @@ process_collisions :: proc() {
 	}
 
 	for &ent_handle in entity_get_all() {
+		if !entity_is_valid(ent_handle) do continue
 		ent_a, ent_a_ok := entity_get(ent_handle)
 		if !ent_a_ok do continue
 		if !ent_a.collider.is_active do continue
@@ -80,11 +81,16 @@ process_collisions :: proc() {
 			if !ent_a.collider.is_active do continue
 			if ent_a.handle.id == ent_b.handle.id do continue
 
-			if !rl.CheckCollisionRecs(ent_a.collider.rectangle, ent_b.collider.rectangle) do continue
+			if !rl.CheckCollisionRecs(ent_a.collider.rectangle, ent_b.collider.rectangle) {
+				fmt.println("returned stuff that wasn't colliding")
+			}
 
 			// Check if entity A should receive collision notification based on layer/mask
 			if ent_b.collider.layer & ent_a.collider.mask != {} {
 				ent_a.on_collide(ent_a, ent_b)
+
+				// if entity was destroyed, then no need to check the other collisions
+				if !entity_is_valid(ent_a) do break
 			}
 		}
 	}
@@ -202,51 +208,37 @@ collision_tree_insert :: proc(ct: ^CollisionTree, collider: Collider) -> (insert
 	return false
 }
 
-collision_tree_query :: proc(ct: ^CollisionTree, collider: Collider) -> [dynamic]Collider {
-
-	colliders_in_range: [dynamic]Collider
+_collision_tree_query :: proc(
+	ct: ^CollisionTree,
+	collider: Collider,
+	colliders_in_range: ^[dynamic]Collider,
+) {
 	fmt.assertf(ct != nil, "collision tree cannot be nil")
 	if !rl.CheckCollisionRecs(ct.bounding_box, collider.rectangle) {
-		return colliders_in_range
+		return
 	}
 
+	// Collect local colliders
 	for &c in ct.colliders {
 		if entity_is_valid(c.handle) && rl.CheckCollisionRecs(c.rectangle, collider.rectangle) {
-			append(&colliders_in_range, c)
+			append(colliders_in_range, c)
 		}
 	}
 
 	if ct.nw == nil {
-		return colliders_in_range
+		return
 	}
 
-	colliders: [dynamic]Collider
+	// Recurse into children
+	_collision_tree_query(ct.nw, collider, colliders_in_range)
+	_collision_tree_query(ct.ne, collider, colliders_in_range)
+	_collision_tree_query(ct.sw, collider, colliders_in_range)
+	_collision_tree_query(ct.se, collider, colliders_in_range)
+}
 
-	fmt.assertf(ct.nw != nil, "collision tree nw quad cannot be nil")
-	colliders = collision_tree_query(ct.nw, collider)
-	for &c in colliders {
-		append(&colliders_in_range, c)
-	}
-	delete(colliders)
-
-	colliders = collision_tree_query(ct.ne, collider)
-	for &c in colliders {
-		append(&colliders_in_range, c)
-	}
-	delete(colliders)
-
-	colliders = collision_tree_query(ct.sw, collider)
-	for &c in colliders {
-		append(&colliders_in_range, c)
-	}
-	delete(colliders)
-
-	colliders = collision_tree_query(ct.se, collider)
-	for &c in colliders {
-		append(&colliders_in_range, c)
-	}
-	delete(colliders)
-
+collision_tree_query :: proc(ct: ^CollisionTree, collider: Collider) -> [dynamic]Collider {
+	colliders_in_range: [dynamic]Collider
+	_collision_tree_query(ct, collider, &colliders_in_range)
 	return colliders_in_range
 }
 

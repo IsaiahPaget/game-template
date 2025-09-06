@@ -526,3 +526,56 @@ test_collision_tree_query_multiple_layers :: proc(t: ^testing.T) {
 	testing.expectf(t, !found_ball2, "query should NOT include ball2 collider (non-overlapping)")
 	testing.expectf(t, !found_ball4, "query should NOT include ball4 collider (non-overlapping)")
 }
+
+@(test)
+test_collision_destroy_entity_mid_collision :: proc(t: ^testing.T) {
+	init_test_memory()
+	defer free_test_memory()
+
+	// Create a collision handler that destroys entities
+	destroying_collision_handler :: proc(entity_a, entity_b: ^gm.Entity) {
+		// Destroy entity_b when collision occurs
+		gm.entity_destroy(entity_b)
+	}
+
+	// Create two entities that will collide
+	entity1 := gm.entity_create(.PLAYER)
+	entity1.collider = gm.init_collider(
+		entity1^,
+		width = 20,
+		height = 20,
+		layer = gm.CollisionLayer{.PLAYER},
+		mask = gm.CollisionLayer{.WORLD},
+	)
+	entity1.on_collide = destroying_collision_handler
+
+	entity2 := gm.entity_create(.BALL)
+	entity2.collider = gm.init_collider(
+		entity2^,
+		width = 20,
+		height = 20,
+		layer = gm.CollisionLayer{.WORLD},
+		mask = gm.CollisionLayer{.PLAYER},
+	)
+	// Don't set collision handler for entity2 to avoid mutual destruction
+
+	// Position them to overlap
+	entity1.pos = {0, 0}
+	entity2.pos = {5, 5} // Overlapping
+
+	// Update collision boxes
+	gm.collision_box_update(entity1)
+	gm.collision_box_update(entity2)
+
+	// Rebuild scratch to include both entities
+	gm.rebuild_scratch()
+
+	// This should not crash - the collision system should handle destroyed entities gracefully
+	gm.process_collisions()
+
+	// Verify entity2 was destroyed
+	testing.expectf(t, !gm.entity_is_valid(entity2), "entity2 should be destroyed after collision")
+	
+	// Verify entity1 is still valid
+	testing.expectf(t, gm.entity_is_valid(entity1), "entity1 should still be valid after collision")
+}
