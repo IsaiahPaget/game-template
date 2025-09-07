@@ -46,17 +46,21 @@ Handle :: struct {
 
 GameMemory :: struct {
 	// Entity
-	entity_top_count: int,
-	latest_entity_id: int,
-	entities:         [MAX_ENTITIES]Entity,
-	entity_free_list: [dynamic]int,
-	player_handle:    Handle,
-	screen_shake:     ScreenShake,
-	textures:         Textures,
-	sounds:           Sounds,
-	soundtrack:       rl.Music,
-	run:              bool,
-	scratch:          struct {
+	entity_top_count:     int,
+	latest_entity_id:     int,
+	entities:             [MAX_ENTITIES]Entity,
+	entity_free_list:     [dynamic]int,
+	entity_setup_table:   [EntityKind.COUNT]EntitySetupProc,
+	entity_update_table:  [EntityKind.COUNT]EntityUpdateProc,
+	entity_collide_table: [EntityKind.COUNT]EntityCollideProc,
+	entity_draw_table:    [EntityKind.COUNT]EntityDrawProc,
+	player_handle:        Handle,
+	screen_shake:         ScreenShake,
+	textures:             Textures,
+	sounds:               Sounds,
+	soundtrack:           rl.Music,
+	run:                  bool,
+	scratch:              struct {
 		all_entities:   []Handle,
 		collision_tree: ^CollisionTree,
 	},
@@ -157,7 +161,7 @@ update :: proc() {
 		// animation for every entity
 		animate(e)
 
-		e.on_update(e)
+		g.entity_update_table[e.kind](e)
 
 		collision_box_update(e)
 	}
@@ -178,7 +182,7 @@ draw :: proc() {
 	for handle in entity_get_all() {
 		e := entity_get(handle)^ // dereference because we don't want to edit it
 		if !entity_is_valid(e) do continue
-		e.on_draw(e)
+		g.entity_draw_table[e.kind](e)
 	}
 	if DEBUG_TREE && g.scratch.collision_tree != nil {
 		collision_tree_depth = debug_render_collision_tree(g.scratch.collision_tree)
@@ -246,6 +250,8 @@ game_init :: proc() {
 		run = true,
 		textures = {player_run = rl.LoadTexture("assets/CorgiRun.png")},
 	}
+	load_entity_functions()
+	// WARNING: No game logic before loading the entity functions
 
 	entity_create(.PLAYER)
 	for _ in 0 ..< 10 {
@@ -303,6 +309,7 @@ game_memory_size :: proc() -> int {
 @(export)
 game_hot_reloaded :: proc(mem: rawptr) {
 	g = (^GameMemory)(mem)
+	load_entity_functions()
 
 	// Here you can also set your own global variables. A good idea is to make
 	// your global variables into pointers that point to something inside `g`.

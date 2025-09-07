@@ -12,6 +12,7 @@ EntityKind :: enum {
 	NIL,
 	PLAYER,
 	BALL,
+	COUNT,
 }
 
 Entity :: struct {
@@ -137,6 +138,11 @@ entity_create :: proc(kind: EntityKind) -> ^Entity {
 	return ent
 }
 
+EntitySetupProc :: proc(e: ^Entity)
+EntityUpdateProc :: proc(e: ^Entity)
+EntityCollideProc :: proc(e_a: ^Entity, e_b: ^Entity)
+EntityDrawProc :: proc(e: Entity)
+
 entity_destroy :: proc(e: ^Entity) {
 	append(&g.entity_free_list, e.handle.index)
 	e^ = {}
@@ -149,11 +155,14 @@ entity_setup :: proc(e: ^Entity, kind: EntityKind) {
 	e.created_on = rl.GetTime()
 	e.tint = rl.WHITE
 
-	switch kind {
-	case .NIL:
-	case .PLAYER:
-		player_setup(e)
-	case .BALL:
-		ball_setup(e)
-	}
+	g.entity_setup_table[kind](e)
+
+	// switch kind {
+	// case .NIL:
+	// case .COUNT: // NOP just there so I know how many kinds there is minus 1
+	// case .PLAYER:
+	// 	player_setup(e)
+	// case .BALL:
+	// 	ball_setup(e)
+	// }
 }

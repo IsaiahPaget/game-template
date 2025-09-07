@@ -87,7 +87,7 @@ process_collisions :: proc() {
 
 			// Check if entity A should receive collision notification based on layer/mask
 			if ent_b.collider.layer & ent_a.collider.mask != {} {
-				ent_a.on_collide(ent_a, ent_b)
+				g.entity_collide_table[ent_a.kind](ent_a, ent_b)
 
 				// if entity was destroyed, then no need to check the other collisions
 				if !entity_is_valid(ent_a) do break

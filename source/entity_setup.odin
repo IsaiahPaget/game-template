@@ -1,6 +1,31 @@
 package game
 import rl "vendor:raylib"
 PLAYER_MOVE_SPEED :: 100
+
+load_entity_functions :: proc() {
+	g.entity_setup_table = [EntityKind.COUNT]EntitySetupProc {
+		EntityKind.PLAYER = player_setup,
+		EntityKind.BALL   = ball_setup,
+	}
+
+	g.entity_update_table = [EntityKind.COUNT]EntityUpdateProc {
+		EntityKind.PLAYER = player_update,
+		EntityKind.BALL   = ball_update,
+	}
+
+	g.entity_collide_table = [EntityKind.COUNT]EntityCollideProc {
+		EntityKind.PLAYER = player_collide,
+		EntityKind.BALL   = ball_collide,
+	}
+
+	g.entity_draw_table = [EntityKind.COUNT]EntityDrawProc {
+		EntityKind.PLAYER = player_draw,
+		EntityKind.BALL   = ball_draw,
+	}
+
+}
+
+
 player_setup :: proc(player: ^Entity) {
 	player.pos.xy = 0
 	player.animation = init_player_run_animation()
